@@ -10,8 +10,15 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Helper function to run full pipeline and return GFA output
 fn run_pipeline(in_memory: bool) -> Result<String, Box<dyn std::error::Error>> {
-    // Create unique temporary paths
-    let unique_id = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
+    // Unique temporary paths: tests run concurrently, and macOS clocks
+    // tick in microseconds, so the timestamp alone can collide.
+    static RUN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let unique_id = format!(
+        "{}_{}_{}",
+        std::process::id(),
+        SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos(),
+        RUN.fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+    );
     let fasta_path = format!("/tmp/test_pipeline_{}_{}.fasta", unique_id, in_memory);
     let paf_path = format!("/tmp/test_pipeline_{}_{}.paf.gz", unique_id, in_memory);
     let base_dir = format!("/tmp/test_pipeline_{}_{}", unique_id, in_memory);
