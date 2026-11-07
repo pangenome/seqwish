@@ -354,7 +354,7 @@ fn write_graph_chunk(
         if curr_dset_id != last_dset_id {
             if repeat_max != 0 || min_repeat_dist != 0 {
                 // Flush todos inline
-                for (_count, positions) in todos.iter() {
+                for positions in todos.values() {
                     seq_v_out.push(current_base);
                     seq_v_length += 1;
                     for pos in positions {
@@ -416,7 +416,7 @@ fn write_graph_chunk(
     }
 
     // Flush remaining todos
-    for (_count, positions) in todos.iter() {
+    for positions in todos.values() {
         seq_v_out.push(current_base);
         seq_v_length += 1;
         for pos in positions {
