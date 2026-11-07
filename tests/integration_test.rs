@@ -281,7 +281,10 @@ fn test_pipeline_disk_mode_basic() -> Result<(), Box<dyn std::error::Error>> {
 fn test_pipeline_single_thread_pool_terminates() {
     let (tx, rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
-        let pool = rayon::ThreadPoolBuilder::new().num_threads(1).build().unwrap();
+        let pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(1)
+            .build()
+            .unwrap();
         let gfa = pool.install(|| run_pipeline(true).map_err(|e| e.to_string()));
         let _ = tx.send(gfa);
     });
