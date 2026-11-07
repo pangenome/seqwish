@@ -267,3 +267,20 @@ fn test_pipeline_disk_mode_basic() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+/// The transitive closure ran its BFS workers and manager as rayon tasks
+/// that spin-wait on each other, so a pool with one free thread livelocked.
+#[test]
+fn test_pipeline_single_thread_pool_terminates() {
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let pool = rayon::ThreadPoolBuilder::new().num_threads(1).build().unwrap();
+        let gfa = pool.install(|| run_pipeline(true).map_err(|e| e.to_string()));
+        let _ = tx.send(gfa);
+    });
+    let gfa = rx
+        .recv_timeout(std::time::Duration::from_secs(60))
+        .expect("transitive closure did not finish in a 1-thread rayon pool")
+        .expect("pipeline failed");
+    assert!(gfa.contains("P\t"), "GFA should contain paths");
+}

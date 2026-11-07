@@ -657,8 +657,10 @@ pub fn compute_transitive_closures(
         let q_curr_bv_shared = Arc::new(q_curr_bv);
         let spanning_pairs_ref = &spanning_pairs;
 
-        rayon::scope(|s| {
-            for _worker_idx in 0..(num_threads * 2) {
+        // OS threads, not rayon tasks: workers and manager spin-wait on
+        // each other, so a pool with one free thread livelocked.
+        std::thread::scope(|s| {
+            for _worker_idx in 0..num_threads.max(1) {
                 let todo_out = Arc::clone(&todo_out);
                 let todo_in = Arc::clone(&todo_in);
                 let aln_iitree = Arc::clone(&aln_iitree_clone);
@@ -667,7 +669,7 @@ pub fn compute_transitive_closures(
                 let seqidx = Arc::clone(&seqidx_clone);
 
                 let active_workers_clone = Arc::clone(&active_workers);
-                s.spawn(move |_s| {
+                s.spawn(move || {
                     let mut empty_count = 0u64;
                     loop {
                         if let Some((pos, match_len)) = todo_out.pop() {
@@ -709,7 +711,7 @@ pub fn compute_transitive_closures(
 
             // Manager task — shuttles todo_in → todo → todo_out (no ovlp_q to drain)
             let active_workers_mgr = Arc::clone(&active_workers);
-            s.spawn(move |_s| {
+            s.spawn(move || {
                 let mut empty_count = 0;
                 loop {
                     let mut did_work = false;
